@@ -1,0 +1,11 @@
+CREATE INDEX idx_jobs_provider ON jobs(provider);
+CREATE INDEX idx_jobs_review_status ON jobs(review_status);
+CREATE INDEX idx_jobs_priority_score ON jobs(priority_score DESC);
+CREATE INDEX idx_jobs_posted_at ON jobs(posted_at DESC);
+CREATE INDEX idx_jobs_housing_status ON jobs(housing_status);
+CREATE INDEX idx_jobs_dedup_hash ON jobs(dedup_hash);
+CREATE INDEX idx_employers_category ON employers(category);
+CREATE INDEX idx_employers_domain ON employers(domain);
+CREATE INDEX idx_employers_region ON employers(region);
+CREATE INDEX idx_employer_contacts_employer_id ON employer_contacts(employer_id);
+CREATE INDEX idx_sync_runs_started_at ON sync_runs(started_at DESC);

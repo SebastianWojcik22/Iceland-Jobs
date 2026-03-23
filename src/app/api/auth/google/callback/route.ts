@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
-import { createClient } from '@/lib/supabase/server';
+import { saveTokens } from '@/lib/google/gmail';
 
 interface TokenResponse {
   access_token: string;
@@ -29,24 +29,14 @@ export async function GET(req: NextRequest) {
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     );
 
-    const tokens = {
+    // Store in Supabase Storage so the cron job can read them without a user session.
+    // Previously stored in user_settings (requires auth.getUser()) which broke
+    // server-side cron requests that run without any active session.
+    await saveTokens({
       access_token: response.data.access_token,
       refresh_token: response.data.refresh_token,
       expires_at: Date.now() + response.data.expires_in * 1000,
-    };
-
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      await supabase.from('user_settings').upsert({
-        user_id: user.id,
-        key: 'gmail_tokens',
-        value: tokens,
-      });
-    }
+    });
 
     return NextResponse.redirect(`${origin}/dashboard/admin?gmail=connected`);
   } catch {

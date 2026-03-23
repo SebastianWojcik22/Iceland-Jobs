@@ -1,6 +1,9 @@
 import axios from 'axios';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server-internal';
 import { logger } from '@/lib/utils/logger';
+
+const BUCKET = 'config';
+const TOKEN_FILE = 'gmail-tokens.json';
 
 interface GmailTokens {
   access_token: string;
@@ -8,21 +11,29 @@ interface GmailTokens {
   expires_at: number;
 }
 
+/**
+ * Load Gmail tokens from Supabase Storage.
+ * Using Storage (not user_settings) so the cron job on Vercel can read them
+ * without an active user session — cron requests are anonymous server calls.
+ */
 async function getTokens(): Promise<GmailTokens | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const supabase = await createServerClient();
+  const { data, error } = await supabase.storage.from(BUCKET).download(TOKEN_FILE);
+  if (error || !data) return null;
+  try {
+    return JSON.parse(await data.text()) as GmailTokens;
+  } catch {
+    return null;
+  }
+}
 
-  const { data } = await supabase
-    .from('user_settings')
-    .select('value')
-    .eq('user_id', user.id)
-    .eq('key', 'gmail_tokens')
-    .single();
-
-  return (data?.value as GmailTokens) ?? null;
+async function saveTokens(tokens: GmailTokens): Promise<void> {
+  const supabase = await createServerClient();
+  const bytes = Buffer.from(JSON.stringify(tokens));
+  await supabase.storage.from(BUCKET).upload(TOKEN_FILE, bytes, {
+    contentType: 'application/json',
+    upsert: true,
+  });
 }
 
 async function refreshIfNeeded(tokens: GmailTokens): Promise<GmailTokens> {
@@ -45,41 +56,12 @@ async function refreshIfNeeded(tokens: GmailTokens): Promise<GmailTokens> {
     expires_at: Date.now() + response.data.expires_in * 1000,
   };
 
-  // Persist updated tokens
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) {
-    await supabase.from('user_settings').upsert({
-      user_id: user.id,
-      key: 'gmail_tokens',
-      value: refreshed,
-    });
-  }
-
+  await saveTokens(refreshed);
   return refreshed;
 }
 
 function encodeSubject(subject: string): string {
   return `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
-}
-
-function makeRaw(params: { bcc: string[]; subject: string; bodyHtml: string }): string {
-  const message = [
-    'Content-Type: text/html; charset="UTF-8"',
-    'MIME-Version: 1.0',
-    `Bcc: ${params.bcc.join(', ')}`,
-    `Subject: ${encodeSubject(params.subject)}`,
-    '',
-    params.bodyHtml,
-  ].join('\r\n');
-
-  return Buffer.from(message)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
 }
 
 export async function sendEmail(params: {
@@ -88,7 +70,7 @@ export async function sendEmail(params: {
   bodyHtml: string;
 }): Promise<string> {
   const tokens = await getTokens();
-  if (!tokens) throw new Error('Gmail not connected');
+  if (!tokens) throw new Error('Gmail not connected — authorize in Admin panel');
 
   const refreshed = await refreshIfNeeded(tokens);
 
@@ -123,15 +105,32 @@ export async function sendEmail(params: {
 }
 
 export async function createDraft(params: {
-  bcc: string[];
+  bcc?: string[];
+  to?: string;
   subject: string;
   bodyHtml: string;
 }): Promise<string> {
   const tokens = await getTokens();
-  if (!tokens) throw new Error('Gmail not connected');
+  if (!tokens) throw new Error('Gmail not connected — authorize in Admin panel');
 
   const refreshed = await refreshIfNeeded(tokens);
-  const raw = makeRaw(params);
+
+  const toLine = params.to ? `To: ${params.to}` : `Bcc: ${(params.bcc ?? []).join(', ')}`;
+
+  const message = [
+    'Content-Type: text/html; charset="UTF-8"',
+    'MIME-Version: 1.0',
+    toLine,
+    `Subject: ${encodeSubject(params.subject)}`,
+    '',
+    params.bodyHtml,
+  ].join('\r\n');
+
+  const raw = Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
   const response = await axios.post<{ id: string }>(
     'https://gmail.googleapis.com/gmail/v1/users/me/drafts',
@@ -147,3 +146,5 @@ export async function createDraft(params: {
   logger.info(`Gmail draft created: ${response.data.id}`);
   return response.data.id;
 }
+
+export { saveTokens };

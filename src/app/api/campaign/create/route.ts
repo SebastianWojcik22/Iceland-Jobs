@@ -3,11 +3,14 @@ import { createServerClient } from '@/lib/supabase/server-internal';
 import { logger } from '@/lib/utils/logger';
 import type { EmailTemplate } from '@/app/api/template/route';
 
+// Neutral subject lines — avoid spam keywords like "job", "seasonal", "work", "hiring"
+// Gmail filters aggressively on these in cold outreach. Tested: neutral subjects deliver,
+// job-related subjects get silently dropped.
 const SUBJECT_VARIANTS = [
-  '{{subject}}',
-  'Job Enquiry – Seasonal Position at {{employer_name}}',
-  'Application for Seasonal Work – {{employer_name}}',
-  'Seasonal Staff Enquiry – {{employer_name}}',
+  'Hej {{employer_name}}',
+  'Hi {{employer_name}}',
+  'Quick question – {{employer_name}}',
+  'Hi there – {{employer_name}}',
 ];
 
 function buildEmail(

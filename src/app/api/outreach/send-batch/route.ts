@@ -7,7 +7,7 @@ export const maxDuration = 300;
 
 const DELAY_MS = 3000; // 3s between emails to avoid rate limits
 const DEFAULT_BATCH = 10;
-const DAILY_LIMIT = 50;
+const DAILY_LIMIT = 150;
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));

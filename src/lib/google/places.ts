@@ -80,7 +80,7 @@ export async function searchPlaces(query: string): Promise<PlaceResult[]> {
       logger.error(`Places API (New) error for query: ${query}`, err);
       break;
     }
-  } while (pageToken && page < 3);
+  } while (pageToken && page < 5);
 
   return results;
 }

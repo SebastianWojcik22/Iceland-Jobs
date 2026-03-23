@@ -10,6 +10,8 @@ interface PageProps {
     pair?: string;
     search?: string;
     page?: string;
+    showIcelandic?: string;
+    minScore?: string;
   }>;
 }
 
@@ -35,6 +37,17 @@ export default async function JobsPage({ searchParams }: PageProps) {
     query = query.eq('review_status', params.status);
   } else {
     query = query.neq('review_status', 'rejected');
+  }
+
+  // By default hide jobs requiring Icelandic language
+  if (!params.showIcelandic) {
+    query = query.neq('icelandic_required_status', 'yes');
+  }
+
+  // By default hide jobs clearly requiring significant experience
+  const minScore = params.minScore ? parseInt(params.minScore) : 35;
+  if (!params.status) {
+    query = query.gte('junior_fit_score', minScore);
   }
 
   if (params.housing) {
@@ -68,6 +81,8 @@ export default async function JobsPage({ searchParams }: PageProps) {
           status: params.status as Job['review_status'] | undefined,
           housing: params.housing as Job['housing_status'] | undefined,
           search: params.search,
+          showIcelandic: params.showIcelandic === '1',
+          minScore,
         }}
       />
     </div>

@@ -4,7 +4,12 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useCallback } from 'react';
 import type { ProviderName, ReviewStatus, HousingStatus } from '@/types';
 
-export function JobFilters() {
+interface Props {
+  showIcelandic?: boolean;
+  minScore?: number;
+}
+
+export function JobFilters({ showIcelandic, minScore = 35 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -77,6 +82,32 @@ export function JobFilters() {
             {{ yes: 'Tak', maybe: 'Może', unknown: 'Nieznane', no: 'Brak' }[h]}
           </option>
         ))}
+      </select>
+
+      {/* Icelandic toggle */}
+      <button
+        onClick={() => setParam('showIcelandic', showIcelandic ? '' : '1')}
+        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+          showIcelandic
+            ? 'bg-orange-900/60 text-orange-300 border-orange-700 hover:bg-orange-900'
+            : 'bg-gray-700 text-gray-400 hover:text-white border-gray-600 hover:bg-gray-600'
+        }`}
+        title="Pokaż/ukryj oferty wymagające islandzkiego"
+      >
+        🇮🇸 {showIcelandic ? 'Ukryj islandzki' : 'Pokaż islandzki'}
+      </button>
+
+      {/* Min score filter */}
+      <select
+        value={minScore}
+        onChange={e => setParam('minScore', e.target.value === '35' ? '' : e.target.value)}
+        className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+        title="Minimalny wynik dopasowania do osoby bez doświadczenia"
+      >
+        <option value={0}>Wszystkie poziomy</option>
+        <option value={35}>Junior friendly (≥35)</option>
+        <option value={50}>Dla początkujących (≥50)</option>
+        <option value={60}>Wyraźnie dla junior (≥60)</option>
       </select>
 
       {/* Clear filters */}

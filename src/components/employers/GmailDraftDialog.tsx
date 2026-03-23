@@ -22,7 +22,7 @@ export function GmailDraftDialog({ employerIds, employerEmails, onClose }: Props
     setTemplateId(id);
     const filled = fillTemplate(id, {});
     setSubject(filled.subject);
-    setBody(filled.body);
+    setBody(filled.bodyHtml);
   }
 
   async function handleSubmit() {

@@ -26,6 +26,8 @@ interface Props {
     status?: string;
     housing?: string;
     search?: string;
+    showIcelandic?: boolean;
+    minScore?: number;
   };
 }
 
@@ -80,7 +82,7 @@ function JobsTableInner({ jobs, total, page, limit, filters }: Props) {
       </div>
 
       {/* Filters */}
-      <JobFilters />
+      <JobFilters showIcelandic={filters.showIcelandic} minScore={filters.minScore} />
 
       {/* Count */}
       <div className="text-xs text-gray-500 mb-3">

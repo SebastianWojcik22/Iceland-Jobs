@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
         variant: i,
       });
       subject = filled.subject;
-      bodyText = filled.body;
+      bodyText = filled.bodyHtml;
     }
 
     return {

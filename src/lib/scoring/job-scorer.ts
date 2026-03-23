@@ -50,6 +50,21 @@ const NEGATIVE_SIGNALS: Signal[] = [
   { pattern: /\bdegree\s+required\b/i, weight: -12 },
   { pattern: /\bcertification\s+required\b/i, weight: -10 },
   { pattern: /fluent\s+icelandic\s+required/i, weight: -12 },
+  // Icelandic: íslenska skylda = icelandic required, ökuréttindi = driving license
+  { pattern: /íslenska\s+(er\s+)?(skylda|nauðsynleg)/i, weight: -20 },
+  { pattern: /\b(ökuréttindi|ökuskírteini)\b/i, weight: -15 },
+  // Requires Icelandic kennitala / e-ID — not available to applicants from Poland
+  { pattern: /\bkennitala\b/i, weight: -25 },
+  { pattern: /\b(auðkenni|rafræn\s+skilríki|electronic\s+identification|electronic\s+id)\b/i, weight: -25 },
+  { pattern: /\bislandic\s+(id|identity|social\s+security)\b/i, weight: -20 },
+  // Heavy machinery / special licenses
+  { pattern: /\b(heavy\s+machinery|forklift|crane|excavator)\s+(licen|certif)/i, weight: -20 },
+  { pattern: /\bmachinery\s+licen/i, weight: -20 },
+  { pattern: /\b(vinnuvélaréttindi|vinnuvél)\b/i, weight: -20 }, // Icelandic: machinery license
+  { pattern: /\bdriving\s+licen[sc]e\s+required\b/i, weight: -15 },
+  { pattern: /\bclass\s+[bc]\s+licen/i, weight: -15 }, // Class B/C driving license
+  // Skilled trades requiring certification
+  { pattern: /\b(welder|electrician|plumber|carpenter)\s+(certified|licensed|required)\b/i, weight: -15 },
   { pattern: /\bsenior\s+(developer|engineer|manager|accountant)\b/i, weight: -10 },
   { pattern: /\b(director|vice\s+president|cfo|cto|ceo)\b/i, weight: -15 },
   { pattern: /\b(engineer|accountant|architect)\s+required\b/i, weight: -12 },

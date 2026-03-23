@@ -1,21 +1,57 @@
 import { searchPlaces } from '@/lib/google/places';
 import { logger } from '@/lib/utils/logger';
 
+// 47 lokalizacji × 9 kategorii = 423 zapytania → ~3000-5000 unikalnych miejsc
+const ICELAND_LOCATIONS = [
+  // Reykjavik + okolice
+  'Reykjavik', 'Hafnarfjordur', 'Kopavogur', 'Mosfellsbaer', 'Gardabaer',
+  // Półwysep Reykjanes
+  'Keflavik', 'Grindavik', 'Selfoss',
+  // Południe
+  'Hveragerdi', 'Hvolsvollur', 'Hella', 'Vik Iceland', 'Kirkjubaejarklaustur',
+  'Hofn Iceland', 'Jokulsarlon', 'Skaftafell', 'Laugarvatn', 'Fludir',
+  // Snæfellsnes / Zachód
+  'Borgarnes', 'Stykkisholmur', 'Grundarfjordur', 'Olafsvik', 'Snaefellsnes',
+  // Fjordy Zachodnie
+  'Isafjordur', 'Holmavik', 'Patreksfjordur',
+  // Północ
+  'Akureyri', 'Husavik', 'Myvatn', 'Dalvik', 'Siglufjordur',
+  'Saudarkrokur', 'Blonduos', 'Skagafjordur', 'Olafsfjordur',
+  // Wschód
+  'Egilsstadir', 'Seydisfjordur', 'Neskaupstadur',
+  'Vopnafjordur', 'Eskifjordur', 'Djupivogur', 'Stodvarfjordur',
+  // Popularne miejsca turystyczne
+  'Golden Circle Iceland', 'South Coast Iceland', 'Westfjords Iceland',
+  'Pingvellir Iceland', 'Landmannalaugar Iceland', 'Vatnajokull Iceland',
+];
+
+const SEARCH_CATEGORIES = [
+  'hotel',
+  'guesthouse',
+  'hostel',
+  'bed and breakfast',
+  'restaurant',
+  'cafe',
+  'tour operator',
+  'farm stay',
+  'resort',
+];
+
+export function buildAllQueries(): string[] {
+  const queries: string[] = [];
+  for (const location of ICELAND_LOCATIONS) {
+    for (const category of SEARCH_CATEGORIES) {
+      queries.push(`${category} in ${location}`);
+    }
+  }
+  return queries;
+}
+
+// Keep for backward compat (used by cron route)
 export const CATEGORY_CONFIG = {
   hotel: {
-    map_queries: [
-      'hotel in Iceland',
-      'guesthouse in Iceland',
-      'hostel in Iceland',
-      'hotel in Reykjavik Iceland',
-      'hotel in South Iceland',
-      'hotel in North Iceland',
-      'hotel in East Iceland',
-      'hotel in West Iceland',
-      'guesthouse in Reykjavik Iceland',
-      'hostel in Reykjavik Iceland',
-    ],
-    site_keywords: ['hotel', 'guesthouse', 'hostel', 'resort', 'lodge'],
+    map_queries: buildAllQueries(),
+    site_keywords: ['hotel', 'guesthouse', 'hostel', 'resort', 'lodge', 'restaurant', 'cafe'],
   },
 } as const;
 
@@ -32,37 +68,77 @@ export interface DiscoveredPlace {
   region: string | null;
 }
 
-const REGIONS = [
-  'Reykjavik',
-  'Akureyri',
-  'Selfoss',
-  'Keflavik',
-  'Vik',
-  'Hofn',
-  'Egilsstadir',
-  'Husavik',
-  'Borgarnes',
-  'Isafjordur',
+const REGION_MAP: Array<{ match: string; label: string }> = [
+  { match: 'reykjavik', label: 'Reykjavik' },
+  { match: 'hafnarfjordur', label: 'Hafnarfjörður' },
+  { match: 'kopavogur', label: 'Kópavogur' },
+  { match: 'keflavik', label: 'Keflavik' },
+  { match: 'selfoss', label: 'Selfoss' },
+  { match: 'akureyri', label: 'Akureyri' },
+  { match: 'husavik', label: 'Húsavík' },
+  { match: 'myvatn', label: 'Mývatn' },
+  { match: 'egilsstadir', label: 'Egilsstaðir' },
+  { match: 'seydisfjordur', label: 'Seyðisfjörður' },
+  { match: 'hofn', label: 'Höfn' },
+  { match: 'vik', label: 'Vík' },
+  { match: 'borgarnes', label: 'Borgarnes' },
+  { match: 'stykkisholmur', label: 'Stykkishólmur' },
+  { match: 'isafjordur', label: 'Ísafjörður' },
+  { match: 'siglufjordur', label: 'Siglufjörður' },
+  { match: 'saudarkrokur', label: 'Sauðárkrókur' },
+  { match: 'hvolsvollur', label: 'Hvolsvöllur' },
+  { match: 'hella', label: 'Hella' },
+  { match: 'grindavik', label: 'Grindavík' },
+  { match: 'hveragerdi', label: 'Hveragerði' },
+  { match: 'dalvik', label: 'Dalvík' },
+  { match: 'olafsfjordur', label: 'Ólafsfjörður' },
+  { match: 'grundarfjordur', label: 'Grundarfjörður' },
+  { match: 'olafsvik', label: 'Ólafsvík' },
+  { match: 'patreksfjordur', label: 'Patreksfjörður' },
+  { match: 'holmavik', label: 'Hólmavík' },
+  { match: 'blonduos', label: 'Blönduós' },
+  { match: 'djupivogur', label: 'Djúpivogur' },
+  { match: 'vopnafjordur', label: 'Vopnafjörður' },
+  { match: 'eskifjordur', label: 'Eskifjörður' },
+  { match: 'neskaupstadur', label: 'Neskaupstaður' },
+  { match: 'kirkjubaejarklaustur', label: 'Kirkjubæjarklaustur' },
+  { match: 'laugarvatn', label: 'Laugarvatn' },
+  { match: 'jokulsarlon', label: 'Jökulsárlón' },
+  { match: 'skaftafell', label: 'Skaftafell' },
+  { match: 'mosfellsbaer', label: 'Mosfellsbær' },
+  { match: 'gardabaer', label: 'Garðabær' },
 ];
 
-function extractRegion(address: string): string | null {
-  for (const r of REGIONS) {
-    if (address.toLowerCase().includes(r.toLowerCase())) return r;
+function extractRegion(address: string): string {
+  const lower = address.toLowerCase().replace(/[^a-z ]/g, '');
+  for (const { match, label } of REGION_MAP) {
+    if (lower.includes(match)) return label;
   }
-  if (address.includes('South')) return 'South Iceland';
-  if (address.includes('North')) return 'North Iceland';
-  if (address.includes('East')) return 'East Iceland';
-  if (address.includes('West')) return 'West Iceland';
+  if (lower.includes('south')) return 'South Iceland';
+  if (lower.includes('north')) return 'North Iceland';
+  if (lower.includes('east')) return 'East Iceland';
+  if (lower.includes('west')) return 'West Iceland';
   return 'Iceland';
 }
 
-export async function searchCategory(category: CategoryKey): Promise<DiscoveredPlace[]> {
-  const config = CATEGORY_CONFIG[category];
+/**
+ * Search Google Places for a given category.
+ * @param queryOffset Resume from this query index (for batched runs)
+ * @param maxQueries Max queries to run in this batch (default: all)
+ */
+export async function searchCategory(
+  category: CategoryKey,
+  queryOffset = 0,
+  maxQueries = Infinity
+): Promise<DiscoveredPlace[]> {
+  const allQueries = buildAllQueries();
+  const batch = allQueries.slice(queryOffset, queryOffset + maxQueries);
+
   const all: DiscoveredPlace[] = [];
   const seenIds = new Set<string>();
 
-  for (const query of config.map_queries) {
-    logger.info(`Places search: "${query}"`);
+  for (const query of batch) {
+    logger.info(`Places search [${queryOffset + batch.indexOf(query) + 1}/${allQueries.length}]: "${query}"`);
     try {
       const places = await searchPlaces(query);
       for (const p of places) {
@@ -84,6 +160,6 @@ export async function searchCategory(category: CategoryKey): Promise<DiscoveredP
     }
   }
 
-  logger.info(`Places search for ${category}: found ${all.length} unique places`);
+  logger.info(`Places search: found ${all.length} unique places in this batch`);
   return all;
 }

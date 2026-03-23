@@ -92,16 +92,21 @@ export async function runSync(
           for (const job of scored) {
             const t = translations.get(job.dedup_hash);
             if (!t) continue;
+            const autoReject = t.icelandicRequired || t.kennitalRequired || job.junior_fit_score < 25;
             await supabase.from('jobs').update({
               title_pl: t.titlePL,
               summary_pl: t.summaryPL,
               requirements_pl: t.requirementsPL,
               language_note: t.languageNote,
-              // Boost housing score if translation detects housing mention
               housing_status: t.housingMentioned && job.housing_status === 'unknown'
                 ? 'maybe'
                 : job.housing_status,
+              ...((t.icelandicRequired || t.kennitalRequired) ? { icelandic_required_status: 'yes' } : {}),
+              ...(autoReject ? { review_status: 'rejected' } : {}),
             }).eq('dedup_hash', job.dedup_hash);
+            if (autoReject) {
+              logger.info(`Auto-rejected: "${job.title}" (icelandic=${t.icelandicRequired}, junior_fit=${job.junior_fit_score})`);
+            }
           }
           logger.info(`Translations complete for ${provider.name}`);
         }

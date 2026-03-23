@@ -64,11 +64,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Szablon jest pusty — uzupełnij temat i treść.' }, { status: 400 });
   }
 
-  // Fetch all employers with a known email
+  // Load blocked domains from Storage (add via /api/admin/block-domain)
+  let blockedDomains: string[] = [];
+  try {
+    const { data: bdFile } = await supabase.storage.from('config').download('blocked-domains.json');
+    if (bdFile) blockedDomains = JSON.parse(await bdFile.text()) as string[];
+  } catch { /* no file yet = none blocked */ }
+
+  // Fetch all employers with a known email.
+  // Employers with careers_page_url are excluded from the mailing campaign
+  // (they have their own application process) but remain in the DB with the
+  // careers_page_url field visible as a note.
   const { data: employers, error } = await supabase
     .from('employers')
-    .select('id, place_name, region, best_email, confidence_score')
+    .select('id, place_name, region, best_email, confidence_score, website_url')
     .not('best_email', 'is', null)
+    .is('careers_page_url', null)
     .order('confidence_score', { ascending: false });
 
   if (error) {
@@ -87,8 +98,17 @@ export async function POST(req: NextRequest) {
       .in('status', ['failed', 'skipped']);
   }
 
+  // Filter out blocked domains (opt-outs / negative replies)
+  function isBlocked(email: string) {
+    const domain = email.split('@')[1]?.toLowerCase() ?? '';
+    return blockedDomains.some(d => domain === d || domain.endsWith('.' + d));
+  }
+  const filtered = employers.filter(emp => !isBlocked(emp.best_email as string));
+  const blockedCount = employers.length - filtered.length;
+  if (blockedCount > 0) logger.info(`Skipped ${blockedCount} employers from blocked domains`);
+
   // Build queue rows using DB template
-  const rows = employers.map((emp, i) => {
+  const rows = filtered.map((emp, i) => {
     const { subject, bodyHtml } = buildEmail(template, emp.place_name, emp.region, i);
     return {
       employer_id: emp.id,

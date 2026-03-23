@@ -30,6 +30,8 @@ export function TemplateEditor() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
+  const [draftResult, setDraftResult] = useState<Array<{ employer: string; email: string; draftId?: string; error?: string }> | null>(null);
 
   useEffect(() => {
     fetch('/api/template')
@@ -65,6 +67,21 @@ export function TemplateEditor() {
       setError(err instanceof Error ? err.message : 'Błąd');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePreviewDrafts() {
+    setDrafting(true);
+    setDraftResult(null);
+    try {
+      const res = await fetch('/api/outreach/preview-drafts', { method: 'POST' });
+      const data = await res.json() as { ok: boolean; drafts?: typeof draftResult; error?: string };
+      if (!data.ok) throw new Error(data.error ?? 'Błąd');
+      setDraftResult(data.drafts ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Błąd tworzenia szkiców');
+    } finally {
+      setDrafting(false);
     }
   }
 
@@ -175,21 +192,41 @@ export function TemplateEditor() {
         </div>
       )}
 
-      {/* Save button */}
+      {/* Save + Preview Drafts buttons */}
       {!preview && (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving || !subject.trim() || !body.trim()}
-            className="px-5 py-2 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            {saving ? 'Zapisuję...' : '💾 Zapisz szablon'}
-          </button>
-          {saved && (
-            <span className="text-green-400 text-sm">✓ Zapisano</span>
-          )}
-          {error && (
-            <span className="text-red-400 text-sm">{error}</span>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={handleSave}
+              disabled={saving || !subject.trim() || !body.trim()}
+              className="px-5 py-2 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              {saving ? 'Zapisuję...' : '💾 Zapisz szablon'}
+            </button>
+            <button
+              onClick={handlePreviewDrafts}
+              disabled={drafting || !subject.trim() || !body.trim()}
+              className="px-5 py-2 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              {drafting ? 'Tworzę szkice...' : '📧 Wyślij 3 szkice do Gmail'}
+            </button>
+            {saved && <span className="text-green-400 text-sm">✓ Zapisano</span>}
+            {error && <span className="text-red-400 text-sm">{error}</span>}
+          </div>
+
+          {draftResult && (
+            <div className="space-y-1.5">
+              <p className="text-xs text-gray-400">Szkice utworzone w Gmail — sprawdź folder Drafts:</p>
+              {draftResult.map((d, i) => (
+                <div key={i} className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg ${d.error ? 'bg-red-900/30 border border-red-700 text-red-300' : 'bg-green-900/20 border border-green-800 text-green-300'}`}>
+                  <span>{d.error ? '✗' : '✓'}</span>
+                  <span className="font-medium">{d.employer}</span>
+                  <span className="text-gray-400">→</span>
+                  <span className="font-mono">{d.email}</span>
+                  {d.error && <span className="text-red-400 ml-auto">{d.error}</span>}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
